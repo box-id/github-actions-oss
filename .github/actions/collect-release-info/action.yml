@@ -33,7 +33,6 @@ outputs:
   release-branch:
     description: "The branch name for the release PR"
     value: ${{ steps.calc_version.outputs.release-branch }}
-  
 
 runs:
   using: "composite"
@@ -41,7 +40,7 @@ runs:
     - name: Ensure actor has write permissions
       uses: skjnldsv/check-actor-permission@v3
       with:
-          require: write
+        require: write
 
     - name: Get latest release or tag
       id: get_release
@@ -69,7 +68,7 @@ runs:
       shell: bash
       run: |
         current="${{ steps.get_release.outputs.release-tag }}"
-        
+
         if [ -z "$current" ]; then
           echo "No previous release found. Using version 1.0.0 for first release"
           new_version="1.0.0"
@@ -77,7 +76,7 @@ runs:
           # Strip any existing prefix to get clean version
           current="${current#${{ inputs.version-prefix }}}"
           IFS='.' read -r major minor patch <<< "$current"
-          
+
           inc_major=0
           inc_minor=0
 
@@ -102,7 +101,7 @@ runs:
         fi
 
         new_version_with_prefix="${{ inputs.version-prefix }}$new_version"
-        
+
         echo "version=$new_version" >> $GITHUB_OUTPUT
         echo "version-with-prefix=$new_version_with_prefix" >> $GITHUB_OUTPUT
         echo "release-branch=release-$new_version_with_prefix" >> $GITHUB_OUTPUT
@@ -136,8 +135,8 @@ runs:
     - name: Configure Git User and Create Release Branch
       shell: bash
       run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
 
-          # create a new branch for the release
-          git checkout -b ${{ steps.calc_version.outputs.release-branch }}
+        # create a new branch for the release
+        git checkout -b ${{ steps.calc_version.outputs.release-branch }}
