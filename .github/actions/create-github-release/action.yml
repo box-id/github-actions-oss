@@ -25,7 +25,7 @@ runs:
   steps:
     - name: Get latest release or tag
       id: last_release
-      uses: box-id/github-actions/.github/actions/get-latest-release@main
+      uses: box-id/github-actions-oss/.github/actions/get-latest-release@main
       with:
         version-prefix: ${{ inputs.version-prefix }}
         github-token: ${{ inputs.github-token }}

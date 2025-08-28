@@ -48,7 +48,7 @@ jobs:
 
       - name: Create GitHub Release
         id: release
-        uses: box-id/github-actions/.github/actions/create-github-release@main
+        uses: box-id/github-actions-oss/.github/actions/create-github-release@main
         with:
           branch: ${{ inputs.branch }}
           version: ${{ steps.new_version.outputs.version }}
