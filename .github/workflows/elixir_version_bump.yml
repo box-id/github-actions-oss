@@ -36,7 +36,7 @@ jobs:
 
       - name: Collect Release Information
         id: release_info
-        uses: box-id/github-actions/.github/actions/collect-release-info@main
+        uses: box-id/github-actions-oss/.github/actions/collect-release-info@main
         with:
           branch: ${{ inputs.branch }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -56,7 +56,7 @@ jobs:
           BRANCH_NAME: ${{ steps.release_info.outputs.release-branch }}
 
       - name: Create pull request with gh
-        uses: box-id/github-actions/.github/actions/create-release-pr@main
+        uses: box-id/github-actions-oss/.github/actions/create-release-pr@main
         with:
           main-branch: ${{ inputs.branch }}
           version: ${{ steps.release_info.outputs.version-with-prefix }}
