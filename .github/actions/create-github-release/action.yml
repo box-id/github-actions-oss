@@ -8,7 +8,7 @@ inputs:
   version:
     description: "The release version"
     required: true
-  version-prefix: 
+  version-prefix:
     description: "The release prefix"
     default: "v"
     required: false
@@ -34,19 +34,19 @@ runs:
       id: check_version
       shell: bash
       run: |
-          current_version_with_prefix="${{inputs.version-prefix}}${{ inputs.version }}"
-          last_release_tag="${{ steps.last_release.outputs.release-tag }}"
-          
-          if [ -z "$last_release_tag" ]; then
-            echo "No previous release found. This will be the first release."
-            echo "version_has_changed=true" >> $GITHUB_OUTPUT
-          elif [ "$current_version_with_prefix" == "$last_release_tag" ]; then
-            echo "Version did not change. Skipping release."
-            echo "version_has_changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "Version changed from $last_release_tag to $current_version_with_prefix. Proceeding with release."
-            echo "version_has_changed=true" >> $GITHUB_OUTPUT
-          fi
+        current_version_with_prefix="${{inputs.version-prefix}}${{ inputs.version }}"
+        last_release_tag="${{ steps.last_release.outputs.release-tag }}"
+
+        if [ -z "$last_release_tag" ]; then
+          echo "No previous release found. This will be the first release."
+          echo "version_has_changed=true" >> $GITHUB_OUTPUT
+        elif [ "$current_version_with_prefix" == "$last_release_tag" ]; then
+          echo "Version did not change. Skipping release."
+          echo "version_has_changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "Version changed from $last_release_tag to $current_version_with_prefix. Proceeding with release."
+          echo "version_has_changed=true" >> $GITHUB_OUTPUT
+        fi
 
     - name: Get Merged PR Description (Optional)
       if: steps.check_version.outputs.version_has_changed == 'true'
@@ -56,49 +56,49 @@ runs:
         VERSION: ${{ inputs.version }}
         VERSION_PREFIX: ${{ inputs.version-prefix }}
       with:
-          script: |
-              try {
-                  const { owner, repo } = context.repo;
-                  const commit_sha = context.sha;
-                  const { VERSION, VERSION_PREFIX } = process.env;
+        script: |
+          try {
+              const { owner, repo } = context.repo;
+              const commit_sha = context.sha;
+              const { VERSION, VERSION_PREFIX } = process.env;
 
-                  console.log(`Fetching PR for commit: ${commit_sha}`);
+              console.log(`Fetching PR for commit: ${commit_sha}`);
 
-                  const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                      owner,
-                      repo,
-                      commit_sha
-                  });
+              const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner,
+                  repo,
+                  commit_sha
+              });
 
-                  if (response.data && response.data.length > 0) {
-                      console.log("Using PR description for release notes.");
-                      const fs = require('fs');
+              if (response.data && response.data.length > 0) {
+                  console.log("Using PR description for release notes.");
+                  const fs = require('fs');
 
-                      // construct the PR body and replace some values
-                      const prBody = response.data[0]?.body || "_No PR description found._";
-                      const isoDate = new Date().toISOString()
-                      const processedBody = prBody
-                        .replaceAll( "(`refs/heads/${{ inputs.branch }}`)", isoDate + " (`" + VERSION + "`)" )
-                        .replaceAll( "refs/heads/${{ inputs.branch }}", VERSION_PREFIX + VERSION )
-                        .replaceAll( "...${{ inputs.branch }}", "..." + VERSION_PREFIX + VERSION )
-                        .replace("\n_Edit this if needed._", "");
+                  // construct the PR body and replace some values
+                  const prBody = response.data[0]?.body || "_No PR description found._";
+                  const isoDate = new Date().toISOString()
+                  const processedBody = prBody
+                    .replaceAll( "(`refs/heads/${{ inputs.branch }}`)", isoDate + " (`" + VERSION + "`)" )
+                    .replaceAll( "refs/heads/${{ inputs.branch }}", VERSION_PREFIX + VERSION )
+                    .replaceAll( "...${{ inputs.branch }}", "..." + VERSION_PREFIX + VERSION )
+                    .replace("\n_Edit this if needed._", "");
 
-                      fs.writeFileSync('pr_body.md', processedBody);
-                  } else {
-                      console.log("No associated PR found.");
-                      return ""; // Don't exit the script
-                  }
-              } catch (error) {
-                  console.error("Error fetching PR details:", error);
-                  throw error; // Ensure failure is reported properly
+                  fs.writeFileSync('pr_body.md', processedBody);
+              } else {
+                  console.log("No associated PR found.");
+                  return ""; // Don't exit the script
               }
+          } catch (error) {
+              console.error("Error fetching PR details:", error);
+              throw error; // Ensure failure is reported properly
+          }
 
     - name: Create GitHub Release
       if: steps.check_version.outputs.version_has_changed == 'true'
       uses: softprops/action-gh-release@v2
       with:
-          tag_name: ${{ inputs.version-prefix }}${{ inputs.version }}
-          name: ${{ inputs.version }}
-          body_path: pr_body.md
-          draft: false
-          prerelease: false
+        tag_name: ${{ inputs.version-prefix }}${{ inputs.version }}
+        name: ${{ inputs.version }}
+        body_path: pr_body.md
+        draft: false
+        prerelease: false
