@@ -15,10 +15,7 @@ on:
         type: string
         default: ".tool-versions"
         description: "The Elixir Version File"
-      elixir-version:
-        type: string
-        default: "1.18"
-        description: "The Elixir version"
+
       version-prefix:
         type: string
         default: "v"
@@ -59,18 +56,18 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Elixir
-        if: ${{ inputs.publish-to-hex }}
+        if: ${{ inputs.publish-to-hex && steps.release.outputs.version_has_changed == 'true' }}
         uses: erlef/setup-beam@v1
         with:
           version-type: strict
           version-file: ${{ inputs.elixir-version-file }}
 
       - name: Install Dependencies
-        if: ${{ inputs.publish-to-hex }}
+        if: ${{ inputs.publish-to-hex && steps.release.outputs.version_has_changed == 'true' }}
         run: mix deps.get
 
       - name: Publish to Hex.pm
-        if: ${{ inputs.publish-to-hex }}
+        if: ${{ inputs.publish-to-hex && steps.release.outputs.version_has_changed == 'true' }}
         run: mix hex.publish --yes
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
