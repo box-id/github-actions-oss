@@ -1,0 +1,54 @@
+name: "Get Latest Release or Tag"
+description: "Gets the latest GitHub release or falls back to the latest git tag matching version prefix"
+
+inputs:
+  version-prefix:
+    description: "The prefix to use for version tags"
+    default: "v"
+    required: false
+  github-token:
+    description: "The GitHub Token to use for GitHub actions"
+    required: true
+
+outputs:
+  release-tag:
+    description: "Latest release tag"
+    value: ${{ steps.get_release.outputs.release-tag }}
+  release-date:
+    description: "Latest release date"
+    value: ${{ steps.get_release.outputs.release-date }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get latest release or tag
+      id: get_release
+      shell: bash
+      run: |
+        # First, try to get GitHub releases
+        pr_resp=$(gh release list --limit 1 --json tagName,publishedAt)
+        if [ "$(echo "$pr_resp" | jq '. | length')" -ne 0 ]; then
+          echo "Found GitHub release"
+          release_data=$(echo "$pr_resp" | jq -r '.[0] | {date: .publishedAt, tag: .tagName}')
+          latest_release=$(echo "$release_data" | jq -r '.tag')
+          latest_release_date=$(echo "$release_data" | jq -r '.date')
+          echo "release-tag=$latest_release" >> $GITHUB_OUTPUT
+          echo "release-date=$latest_release_date" >> $GITHUB_OUTPUT
+        else
+          # Fallback to git tags matching the version prefix
+          echo "No GitHub releases found. Checking for git tags..."
+          latest_tag=$(git tag -l --sort=-version:refname "${{ inputs.version-prefix }}*" | head -n 1)
+          if [ -n "$latest_tag" ]; then
+            echo "Found git tag: $latest_tag"
+            # Get the commit date of the tag
+            tag_date=$(git log -1 --format=%cI "$latest_tag")
+            echo "release-tag=$latest_tag" >> $GITHUB_OUTPUT
+            echo "release-date=$tag_date" >> $GITHUB_OUTPUT
+          else
+            echo "No previous releases or tags found."
+            echo "release-tag=" >> $GITHUB_OUTPUT
+            echo "release-date=" >> $GITHUB_OUTPUT
+          fi
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}

@@ -1,0 +1,30 @@
+name: "Create Release PR"
+description: "Create a release PR"
+
+inputs:
+  main-branch:
+    description: "The branch to publish from"
+    default: "main"
+    required: false
+  changelog:
+    description: "The changelog to add to the PR"
+    required: true
+  version:
+    description: "The Version to Release (with prefix)"
+    required: true
+  github-token:
+    description: "The GitHub Token to use for GitHub actions"
+    required: true
+    
+runs:
+  using: "composite"
+  steps:
+    - name: Create pull request with gh
+      shell: bash
+      env:
+          CHANGELOG: ${{ inputs.changelog }}
+          BRANCH_NAME: release-${{ inputs.version }}
+          GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+          echo -e "$CHANGELOG\n\n_Edit this if needed._" > pr_body
+          export body=$(cat pr_body); gh pr create --title "Release ${{ inputs.version }}" --body "$body" --base ${{ inputs.main-branch }} --head "$BRANCH_NAME" --repo "${{ github.repository }}"

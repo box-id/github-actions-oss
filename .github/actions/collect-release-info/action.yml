@@ -1,0 +1,143 @@
+name: "Collect Release Information"
+description: "Get latest release, determine next version, generate changelog"
+
+inputs:
+  branch:
+    description: "The branch to publish from"
+    default: "main"
+    required: false
+  github-token:
+    description: "The GitHub Token to use for GitHub actions"
+    required: true
+  version-prefix:
+    description: "The prefix to use for version tags"
+    default: "v"
+    required: false
+
+outputs:
+  version:
+    description: "Next semantic version (without prefix)"
+    value: ${{ steps.calc_version.outputs.version }}
+  version-with-prefix:
+    description: "Next semantic version (with prefix)"
+    value: ${{ steps.calc_version.outputs.version-with-prefix }}
+  release-tag:
+    description: "Latest release tag"
+    value: ${{ steps.get_release.outputs.release-tag }}
+  release-date:
+    description: "Latest release date"
+    value: ${{ steps.get_release.outputs.release-date }}
+  changelog:
+    description: "Generated changelog"
+    value: ${{ steps.changelog.outputs.changelog }}
+  release-branch:
+    description: "The branch name for the release PR"
+    value: ${{ steps.calc_version.outputs.release-branch }}
+  
+
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure actor has write permissions
+      uses: skjnldsv/check-actor-permission@v3
+      with:
+          require: write
+
+    - name: Get latest release or tag
+      id: get_release
+      uses: box-id/github-actions/.github/actions/get-latest-release@main
+      with:
+        version-prefix: ${{ inputs.version-prefix }}
+        github-token: ${{ inputs.github-token }}
+
+    - name: Get merged PRs since last tag
+      id: get_prs
+      shell: bash
+      run: |
+        if [ -z "${{ steps.get_release.outputs.release-date }}" ]; then
+          echo "No previous release date. Getting all merged PRs."
+          prs=$(gh pr list --state merged --json number,labels --jq '.[] | {number, labels: [.labels[].name]}')
+        else
+          prs=$(gh pr list --state merged --search "merged:>${{ steps.get_release.outputs.release-date }}" --json number,labels --jq '.[] | {number, labels: [.labels[].name]}')
+        fi
+        echo "$prs" > pr_list.json
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Determine next version
+      id: calc_version
+      shell: bash
+      run: |
+        current="${{ steps.get_release.outputs.release-tag }}"
+        
+        if [ -z "$current" ]; then
+          echo "No previous release found. Using version 1.0.0 for first release"
+          new_version="1.0.0"
+        else
+          # Strip any existing prefix to get clean version
+          current="${current#${{ inputs.version-prefix }}}"
+          IFS='.' read -r major minor patch <<< "$current"
+          
+          inc_major=0
+          inc_minor=0
+
+          while IFS= read -r pr; do
+            labels=$(echo "$pr" | jq -r '.labels[]?')
+            if echo "$labels" | grep -E -q "breaking"; then
+              inc_major=1
+            elif echo "$labels" | grep -E -q "improvement|deprecation"; then
+              [[ "$inc_major" -eq 0 ]] && inc_minor=1
+            fi
+          done < <(jq -c '.' pr_list.json)
+
+          if [[ "$inc_major" -eq 1 ]]; then
+            ((major+=1)); minor=0; patch=0
+          elif [[ "$inc_minor" -eq 1 ]]; then
+            ((minor+=1)); patch=0
+          else
+            ((patch+=1))
+          fi
+
+          new_version="$major.$minor.$patch"
+        fi
+
+        new_version_with_prefix="${{ inputs.version-prefix }}$new_version"
+        
+        echo "version=$new_version" >> $GITHUB_OUTPUT
+        echo "version-with-prefix=$new_version_with_prefix" >> $GITHUB_OUTPUT
+        echo "release-branch=release-$new_version_with_prefix" >> $GITHUB_OUTPUT
+
+    - name: Check Changelog Config File Exists
+      shell: bash
+      run: |
+        if [ ! -f ./.github/changelog-config.json ]; then
+          echo "❌ Config File Missing: .github/changelog-config.json"
+          exit 1
+        else
+          echo "✅ Config File Found."
+        fi
+
+    - name: Generate Changelog
+      id: changelog
+      uses: mikepenz/release-changelog-builder-action@v5
+      with:
+        configuration: ".github/changelog-config.json"
+        fromTag: ${{ steps.get_release.outputs.release-tag || '' }}
+        toTag: ${{ inputs.branch }}
+        fetchReleaseInformation: true
+        failOnError: true
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    - name: Output changelog
+      shell: bash
+      run: echo "${{ steps.changelog.outputs.changelog }}"
+
+    - name: Configure Git User and Create Release Branch
+      shell: bash
+      run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          # create a new branch for the release
+          git checkout -b ${{ steps.calc_version.outputs.release-branch }}

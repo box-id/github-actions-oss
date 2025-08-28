@@ -1,0 +1,75 @@
+name: 🔩 Publish Release (Auto)
+
+on:
+    workflow_call:
+        inputs:
+            branch:
+                type: string
+                default: main
+                description: "The branch to publish the release from."
+            publish-to-hex:
+                type: boolean
+                default: false
+                description: "Whether to publish the package to hex.pm"
+            elixir-version-file:
+                type: string
+                default: ".tool-versions"
+                description: "The Elixir Version File"
+            elixir-version:
+                type: string
+                default: "1.18"
+                description: "The Elixir version"
+            version-prefix:
+                type: string
+                default: "v"
+                description: "The prefix to use for version tags"
+
+permissions:
+    contents: write
+    id-token: write
+    pull-requests: read
+    issues: read
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+
+            - name: Get Current Version from mix.exs
+              id: new_version
+              shell: bash
+              run: |
+                  VERSION=$(grep -o 'version: "[^"]*"' mix.exs | sed 's/version: "\(.*\)"/\1/')
+                  VERSION_WITH_PREFIX="${{ inputs.version-prefix }}$VERSION"
+                  echo "Current Version: $VERSION"
+                  echo "Current Version with prefix: $VERSION_WITH_PREFIX"
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+                  echo "version-with-prefix=$VERSION_WITH_PREFIX" >> $GITHUB_OUTPUT
+
+            - name: Create GitHub Release
+              id: release
+              uses: box-id/github-actions/.github/actions/create-github-release@main
+              with:
+                branch: ${{ inputs.branch }}
+                version: ${{ steps.new_version.outputs.version }}
+                version-prefix: ${{ inputs.version-prefix }}
+                github-token: ${{ secrets.GITHUB_TOKEN }}
+            
+            - name: Set up Elixir
+              if: ${{ inputs.publish-to-hex }}
+              uses: erlef/setup-beam@v1
+              with:
+                version-type: strict
+                version-file: ${{ inputs.elixir-version-file }}
+            - name: Install Dependencies
+              if: ${{ inputs.publish-to-hex }}
+              run: mix deps.get
+
+            - name: Publish to Hex.pm
+              if: ${{ inputs.publish-to-hex }}
+              run: mix hex.publish --yes
+              env:
+                HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

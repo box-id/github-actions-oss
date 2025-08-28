@@ -1,0 +1,64 @@
+name: 🔩 Create Version Bump PR (Sub Action)
+
+on:
+    workflow_call:
+        inputs:
+          branch:
+              type: string
+              default: main
+              description: "The branch to publish the release from."
+          version-prefix:
+            type: string
+            default: "v"
+            description: "The prefix to use for version tags"
+env:
+    MAIN_BRANCH: ${{ inputs.branch }}
+
+permissions:
+    # This is required for actions/checkout and bump the version
+    contents: write
+    # Needed for creating PR
+    pull-requests: write
+    # This is required to check state of other jobs
+    actions: read
+
+jobs:
+    create_version_bump_pr:
+        runs-on: ubuntu-latest
+
+        timeout-minutes: 30
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Collect Release Information
+              id: release_info
+              uses: box-id/github-actions/.github/actions/collect-release-info@main
+              with:
+                branch: ${{ inputs.branch }}
+                github-token: ${{ secrets.GITHUB_TOKEN }}
+                version-prefix: ${{ inputs.version-prefix }}
+
+            - name: Bump Release Version
+              run: |
+                  sed -i "s/\(version: \"\)[^\"]*\(\"\)/\1${{ steps.release_info.outputs.version }}\2/" mix.exs
+
+                  git add mix.exs
+                  git commit -m "release - bump to ${{ steps.release_info.outputs.version-with-prefix }}"
+
+                  # push the version bump branch
+                  git push origin $BRANCH_NAME
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  BRANCH_NAME: ${{ steps.release_info.outputs.release-branch }}
+
+            - name: Create pull request with gh
+              uses: box-id/github-actions/.github/actions/create-release-pr@main
+              with:
+                main-branch: ${{ inputs.branch }}
+                version: ${{ steps.release_info.outputs.version-with-prefix }}
+                changelog: ${{ steps.release_info.outputs.changelog }}
+                github-token: ${{ secrets.GITHUB_TOKEN }}
