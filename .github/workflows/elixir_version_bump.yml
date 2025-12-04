@@ -48,7 +48,7 @@ jobs:
           sed -i "s/\(version: \"\)[^\"]*\(\"\)/\1${{ steps.release_info.outputs.version }}\2/" mix.exs
 
           # Replace install instruction in README.md
-          sed -i "s/, "~> [^\"]*/, "~> ${{ steps.release_info.outputs.version }}/" README.md
+          sed -i "s/, \"~> [^\"]*/, \"~> ${{ steps.release_info.outputs.version }}/" README.md
 
           git add mix.exs README.md
           git commit -m "release - bump to ${{ steps.release_info.outputs.version-with-prefix }}"
