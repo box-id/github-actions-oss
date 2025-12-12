@@ -50,7 +50,7 @@ jobs:
         with:
           registry-url: https://registry.npmjs.org
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_READ_ALL }}
 
       - name: Install Dependencies
         if: steps.release.outputs.version_has_changed == 'true'
