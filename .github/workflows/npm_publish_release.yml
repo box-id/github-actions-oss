@@ -63,4 +63,4 @@ jobs:
       - name: Publish to npm
         if: steps.release.outputs.version_has_changed == 'true'
         # publish authentication is done by the trusted provider OICD setting within the NPM package settings 
-        run: npm publish
+        run: npm publish --access restricted
