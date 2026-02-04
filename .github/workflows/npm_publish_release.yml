@@ -62,6 +62,5 @@ jobs:
 
       - name: Publish to npm
         if: steps.release.outputs.version_has_changed == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_PUBLISH }}
-        run: npm publish --access restricted
+        # publish authentication is done by the trusted provider OICD setting within the NPM package settings 
+        run: npm publish
