@@ -46,7 +46,7 @@ jobs:
         run: echo "npm=$(npm -v)" >> $GITHUB_OUTPUT
 
       - name: Compare npm version >= 11.5.1
-        uses: madhead/semver-utils@latest
+        uses: madhead/semver-utils@v4
         id: npm_version_check
         with:
           version: ${{ steps.npm-version.outputs.npm }}
