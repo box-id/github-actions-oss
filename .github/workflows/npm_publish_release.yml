@@ -75,6 +75,12 @@ jobs:
         if: steps.release.outputs.version_has_changed == 'true'
         run: |
           : > .npmrc.publish
+          
+      - name: Debug npm auth
+        run: |
+          echo "userconfig=$NPM_CONFIG_USERCONFIG"
+          npm config get //registry.npmjs.org/:_authToken || true
+          env | sort | grep -E 'ACTIONS_ID_TOKEN|NPM_CONFIG_USERCONFIG|NODE_AUTH_TOKEN' || true
 
       - name: Publish to npm (OIDC trusted publisher)
         if: steps.release.outputs.version_has_changed == 'true'
