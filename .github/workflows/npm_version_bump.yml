@@ -45,12 +45,18 @@ jobs:
         id: npm-version
         run: echo "npm=$(npm -v)" >> $GITHUB_OUTPUT
 
-      - name: Check npm version >= 11.5.1 to ensure npm OIDC support is available
+      - name: Compare npm version >= 11.5.1
         uses: madhead/semver-utils@latest
         id: npm_version_check
         with:
           version: ${{ steps.npm-version.outputs.npm }}
           satisfies: ">=11.5.1"
+
+      - name: Check if npm version is compatible with OIDC trusted publisher
+        if: steps.npm_version_check.outputs.satisfies == 'false'
+        run: |
+          echo "npm version does not support OIDC trusted publisher. Please upgrade npm to 11.5.1 or higher."
+          exit 1
 
       - name: Install dependencies
         run: npm ci
