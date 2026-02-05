@@ -76,7 +76,7 @@ jobs:
           always-auth=true
           EOF
         env:
-          NPM_TOKEN_READ_ALL: ${{ secrets.NPM_TOKEN_READ_ALL }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_READ_ALL }}
 
       - name: Install Dependencies
         if: steps.release.outputs.version_has_changed == 'true'
