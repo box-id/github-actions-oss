@@ -45,7 +45,7 @@ jobs:
         id: npm-version
         run: echo "npm=$(npm -v)" >> $GITHUB_OUTPUT
 
-      - name: Check npm version >= 11.5.1 to ensure OIDC support
+      - name: Check npm version >= 11.5.1 to ensure npm OIDC support is available
         uses: madhead/semver-utils@latest
         id: npm_version_check
         with:

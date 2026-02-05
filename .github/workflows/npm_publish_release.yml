@@ -50,8 +50,6 @@ jobs:
         with:
           registry-url: https://registry.npmjs.org
 
-      - uses: volta-cli/action@v4
-
       - name: Get npm version
         id: npm-version
         run: echo "npm=$(npm -v)" >> $GITHUB_OUTPUT
@@ -97,7 +95,7 @@ jobs:
 
       - name: Publish to npm (OIDC trusted publisher)
         if: steps.release.outputs.version_has_changed == 'true'
-        # publish authentication is done by the trusted provider OICD setting within the NPM package settings
+        # publish authentication is done by the trusted provider OIDC setting within the NPM package settings
         run: npm publish --access restricted
         env:
           NODE_AUTH_TOKEN: ""
