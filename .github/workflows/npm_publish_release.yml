@@ -49,18 +49,36 @@ jobs:
       - uses: volta-cli/action@v4
         with:
           registry-url: https://registry.npmjs.org
+      
+      - name: Create npmrc for install (read token)
+        if: steps.release.outputs.version_has_changed == 'true'
+        run: |
+          cat > .npmrc.install <<'EOF'
+          @boxid:registry=https://registry.npmjs.org/
+          //registry.npmjs.org/:_authToken=${NPM_TOKEN_READ_ALL}
+          always-auth=true
+          EOF
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_READ_ALL }}
+          NPM_TOKEN_READ_ALL: ${{ secrets.NPM_TOKEN_READ_ALL }}
 
       - name: Install Dependencies
         if: steps.release.outputs.version_has_changed == 'true'
         run: npm ci
+        env:
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.install
 
       - name: Build Project
         if: steps.release.outputs.version_has_changed == 'true'
         run: npm run compile
 
-      - name: Publish to npm
+      - name: Create empty npmrc for publish (OIDC)
+        if: steps.release.outputs.version_has_changed == 'true'
+        run: |
+          : > .npmrc.publish
+
+      - name: Publish to npm (OIDC trusted publisher)
         if: steps.release.outputs.version_has_changed == 'true'
         # publish authentication is done by the trusted provider OICD setting within the NPM package settings 
         run: npm publish --access restricted
+        env:
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.publish
