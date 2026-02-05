@@ -61,7 +61,7 @@ jobs:
         id: npm_version_check
         with:
           version: ${{ steps.npm-version.outputs.npm }}
-          satisfies: ">=15.5.1"
+          satisfies: ">=11.5.1"
 
       - name: Check if npm version is compatible with OIDC trusted publisher
         if: steps.npm_version_check.outputs.satisfies == 'false'
