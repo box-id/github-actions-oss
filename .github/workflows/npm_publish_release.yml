@@ -50,17 +50,19 @@ jobs:
         with:
           registry-url: https://registry.npmjs.org
 
-      - name: Show tool versions
-        run: |
-          node -v
-          npm -v
-          
-      - name: Upgrade npm for Trusted Publishing (OIDC)
-        run: npm i -g npm@^11.5.1
-      
-      - name: Confirm npm version
-        run: npm -v
-      
+      - uses: volta-cli/action@v4
+
+      - name: Get npm version
+        id: npm-version
+        run: echo "npm=$(npm -v)" >> $GITHUB_OUTPUT
+
+      - name: Check npm version >= 11.5.1 to ensure OIDC support
+        uses: madhead/semver-utils@latest
+        id: npm_version_check
+        with:
+          version: ${{ steps.npm-version.outputs.npm }}
+          satisfies: ">=11.5.1"
+
       - name: Create npmrc for install (read token)
         if: steps.release.outputs.version_has_changed == 'true'
         run: |
@@ -86,19 +88,10 @@ jobs:
         if: steps.release.outputs.version_has_changed == 'true'
         run: |
           : > .npmrc.publish
-          
-      - name: Debug npm auth
-        run: |
-          echo "userconfig=$NPM_CONFIG_USERCONFIG"
-          npm config get //registry.npmjs.org/:_authToken || true
-          env | sort | grep -E 'ACTIONS_ID_TOKEN|NPM_CONFIG_USERCONFIG|NODE_AUTH_TOKEN' || true
-        env:
-          NODE_AUTH_TOKEN: ""
-          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.publish
 
       - name: Publish to npm (OIDC trusted publisher)
         if: steps.release.outputs.version_has_changed == 'true'
-        # publish authentication is done by the trusted provider OICD setting within the NPM package settings 
+        # publish authentication is done by the trusted provider OICD setting within the NPM package settings
         run: npm publish --access restricted
         env:
           NODE_AUTH_TOKEN: ""
