@@ -70,12 +70,12 @@ jobs:
       - name: Create npmrc for install (read token)
         if: steps.release.outputs.version_has_changed == 'true'
         run: |
-          cat > .npmrc.install <<'EOF'
+          cat > ${NPM_CONFIG_USERCONFIG} <<'EOF'
           @boxid:registry=https://registry.npmjs.org/
           //registry.npmjs.org/:_authToken=${NPM_TOKEN_READ_ALL}
-          always-auth=true
           EOF
         env:
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.install
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_READ_ALL }}
 
       - name: Install Dependencies
@@ -91,7 +91,10 @@ jobs:
       - name: Create empty npmrc for publish (OIDC)
         if: steps.release.outputs.version_has_changed == 'true'
         run: |
-          : > .npmrc.publish
+          : > ${NPM_CONFIG_USERCONFIG}
+        env:
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.publish
+        
 
       - name: Publish to npm (OIDC trusted publisher)
         if: steps.release.outputs.version_has_changed == 'true'
