@@ -49,6 +49,8 @@ jobs:
       - uses: volta-cli/action@v4
         with:
           registry-url: https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_READ_ALL }}
 
       - name: Get npm version
         id: npm-version
@@ -67,22 +69,9 @@ jobs:
           echo "npm version does not support OIDC trusted publisher. Please upgrade npm to 11.5.1 or higher."
           exit 1
 
-      - name: Create npmrc for install (read token)
-        if: steps.release.outputs.version_has_changed == 'true'
-        run: |
-          cat > "${NPM_CONFIG_USERCONFIG}" <<'EOF'
-          @boxid:registry=https://registry.npmjs.org/
-          //registry.npmjs.org/:_authToken=${NPM_TOKEN_READ_ALL}
-          EOF
-        env:
-          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.install
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_READ_ALL }}
-
       - name: Install Dependencies
         if: steps.release.outputs.version_has_changed == 'true'
         run: npm ci
-        env:
-          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc.install
 
       - name: Build Project
         if: steps.release.outputs.version_has_changed == 'true'
