@@ -27,6 +27,14 @@ jobs:
 
 </details>
 
+### Automatic version increments based on PR labels
+
+For version bump workflows, the version is bumped based on the labels attached to the PR:
+
+- `breaking` -> bumps major
+- `improvement` -> bumps minor
+- _(none)_ -> bumps patch
+
 ## Elixir Workflows
 
 ### `elixir_version_bump.yml`
