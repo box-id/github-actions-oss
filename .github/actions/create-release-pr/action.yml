@@ -23,8 +23,12 @@ runs:
       shell: bash
       env:
         CHANGELOG: ${{ inputs.changelog }}
+        VERSION: ${{ inputs.version }}
         BRANCH_NAME: release-${{ inputs.version }}
+        MAIN_BRANCH: ${{ inputs.main-branch }}
+        REPOSITORY: ${{ github.repository }}
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        echo -e "$CHANGELOG\n\n_Edit this if needed._" > pr_body
-        export body=$(cat pr_body); gh pr create --title "Release ${{ inputs.version }}" --body "$body" --base ${{ inputs.main-branch }} --head "$BRANCH_NAME" --repo "${{ github.repository }}"
+        # printf instead of `echo -e`: backslashes in PR titles must not be interpreted as escape sequences.
+        printf '%s\n\n_Edit this if needed._\n' "$CHANGELOG" > pr_body
+        gh pr create --title "Release $VERSION" --body-file pr_body --base "$MAIN_BRANCH" --head "$BRANCH_NAME" --repo "$REPOSITORY"
