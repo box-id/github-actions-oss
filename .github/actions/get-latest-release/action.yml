@@ -37,7 +37,7 @@ runs:
         else
           # Fallback to git tags matching the version prefix
           echo "No GitHub releases found. Checking for git tags..."
-          latest_tag=$(git tag -l --sort=-version:refname "${{ inputs.version-prefix }}*" | head -n 1)
+          latest_tag=$(git tag -l --sort=-version:refname "$VERSION_PREFIX*" | head -n 1)
           if [ -n "$latest_tag" ]; then
             echo "Found git tag: $latest_tag"
             # Get the commit date of the tag
@@ -52,3 +52,4 @@ runs:
         fi
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        VERSION_PREFIX: ${{ inputs.version-prefix }}

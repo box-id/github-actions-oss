@@ -52,29 +52,48 @@ runs:
     - name: Get merged PRs since last tag
       id: get_prs
       shell: bash
-      run: |
-        if [ -z "${{ steps.get_release.outputs.release-date }}" ]; then
-          echo "No previous release date. Getting all merged PRs."
-          prs=$(gh pr list --state merged --json number,labels --jq '.[] | {number, labels: [.labels[].name]}')
-        else
-          prs=$(gh pr list --state merged --search "merged:>${{ steps.get_release.outputs.release-date }}" --json number,labels --jq '.[] | {number, labels: [.labels[].name]}')
-        fi
-        echo "$prs" > pr_list.json
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        RELEASE_DATE: ${{ steps.get_release.outputs.release-date }}
+      run: |
+        # gh pr list returns only 30 PRs by default. Request the maximum the search API can return (1000) and
+        # fail if we hit it, so a `breaking` PR can never be silently left out of the version calculation.
+        limit=1000
+        if [ -z "$RELEASE_DATE" ]; then
+          echo "No previous release date. Getting all merged PRs."
+          prs=$(gh pr list --state merged --limit "$limit" --json number,labels)
+        else
+          prs=$(gh pr list --state merged --limit "$limit" --search "merged:>$RELEASE_DATE" --json number,labels)
+        fi
+
+        count=$(jq 'length' <<< "$prs")
+        echo "Found $count merged PR(s)."
+        if [ "$count" -ge "$limit" ]; then
+          if [ -n "$RELEASE_DATE" ]; then
+            echo "::error::$count or more PRs merged since $RELEASE_DATE; the list may be incomplete. Release more often or bump the version manually."
+            exit 1
+          fi
+          # Without a previous release the first version is always 1.0.0 and the labels are not used.
+          echo "::warning::PR list truncated at $limit entries (first release, labels are ignored)."
+        fi
+
+        jq -c '.[] | {number, labels: [.labels[].name]}' <<< "$prs" > pr_list.json
 
     - name: Determine next version
       id: calc_version
       shell: bash
+      env:
+        CURRENT_TAG: ${{ steps.get_release.outputs.release-tag }}
+        VERSION_PREFIX: ${{ inputs.version-prefix }}
       run: |
-        current="${{ steps.get_release.outputs.release-tag }}"
+        current="$CURRENT_TAG"
 
         if [ -z "$current" ]; then
           echo "No previous release found. Using version 1.0.0 for first release"
           new_version="1.0.0"
         else
           # Strip any existing prefix to get clean version
-          current="${current#${{ inputs.version-prefix }}}"
+          current="${current#"$VERSION_PREFIX"}"
           IFS='.' read -r major minor patch <<< "$current"
 
           inc_major=0
@@ -100,7 +119,7 @@ runs:
           new_version="$major.$minor.$patch"
         fi
 
-        new_version_with_prefix="${{ inputs.version-prefix }}$new_version"
+        new_version_with_prefix="$VERSION_PREFIX$new_version"
 
         echo "version=$new_version" >> $GITHUB_OUTPUT
         echo "version-with-prefix=$new_version_with_prefix" >> $GITHUB_OUTPUT
@@ -130,13 +149,18 @@ runs:
 
     - name: Output changelog
       shell: bash
-      run: echo "${{ steps.changelog.outputs.changelog }}"
+      env:
+        # Passed via env, never interpolated into the script: the changelog contains PR titles.
+        CHANGELOG: ${{ steps.changelog.outputs.changelog }}
+      run: printf '%s\n' "$CHANGELOG"
 
     - name: Configure Git User and Create Release Branch
       shell: bash
+      env:
+        RELEASE_BRANCH: ${{ steps.calc_version.outputs.release-branch }}
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
 
         # create a new branch for the release
-        git checkout -b ${{ steps.calc_version.outputs.release-branch }}
+        git checkout -b "$RELEASE_BRANCH"

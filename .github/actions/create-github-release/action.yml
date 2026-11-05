@@ -15,6 +15,12 @@ inputs:
   github-token:
     description: "The GitHub Token to use for GitHub actions"
     required: true
+  target-commitish:
+    description: >-
+      Commit SHA (or branch) the release tag is created on if it does not exist yet. Defaults to the commit that
+      triggered the workflow, so the tag points at the tested commit rather than the branch HEAD at release time.
+    default: ${{ github.sha }}
+    required: false
 
 outputs:
   version_has_changed:
@@ -33,9 +39,13 @@ runs:
     - name: Check if Version Changed
       id: check_version
       shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        VERSION_PREFIX: ${{ inputs.version-prefix }}
+        LAST_RELEASE_TAG: ${{ steps.last_release.outputs.release-tag }}
       run: |
-        current_version_with_prefix="${{inputs.version-prefix}}${{ inputs.version }}"
-        last_release_tag="${{ steps.last_release.outputs.release-tag }}"
+        current_version_with_prefix="$VERSION_PREFIX$VERSION"
+        last_release_tag="$LAST_RELEASE_TAG"
 
         if [ -z "$last_release_tag" ]; then
           echo "No previous release found. This will be the first release."
@@ -55,12 +65,13 @@ runs:
       env:
         VERSION: ${{ inputs.version }}
         VERSION_PREFIX: ${{ inputs.version-prefix }}
+        BRANCH: ${{ inputs.branch }}
       with:
         script: |
           try {
               const { owner, repo } = context.repo;
               const commit_sha = context.sha;
-              const { VERSION, VERSION_PREFIX } = process.env;
+              const { VERSION, VERSION_PREFIX, BRANCH } = process.env;
 
               console.log(`Fetching PR for commit: ${commit_sha}`);
 
@@ -78,9 +89,9 @@ runs:
                   const prBody = response.data[0]?.body || "_No PR description found._";
                   const isoDate = new Date().toISOString()
                   const processedBody = prBody
-                    .replaceAll( "(`refs/heads/${{ inputs.branch }}`)", isoDate + " (`" + VERSION + "`)" )
-                    .replaceAll( "refs/heads/${{ inputs.branch }}", VERSION_PREFIX + VERSION )
-                    .replaceAll( "...${{ inputs.branch }}", "..." + VERSION_PREFIX + VERSION )
+                    .replaceAll( "(`refs/heads/" + BRANCH + "`)", isoDate + " (`" + VERSION + "`)" )
+                    .replaceAll( "refs/heads/" + BRANCH, VERSION_PREFIX + VERSION )
+                    .replaceAll( "..." + BRANCH, "..." + VERSION_PREFIX + VERSION )
                     .replace("\n_Edit this if needed._", "");
 
                   fs.writeFileSync('pr_body.md', processedBody);
@@ -98,6 +109,7 @@ runs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ inputs.version-prefix }}${{ inputs.version }}
+        target_commitish: ${{ inputs.target-commitish }}
         name: ${{ inputs.version }}
         body_path: pr_body.md
         draft: false
